@@ -5,6 +5,12 @@
 
 Rankinator uses spectrogram inputs and tokenized osu! beatmap events to classify whether an osu! beatmap can be ranked or not.
 
+```
+Todo:
+- Migrate to metadata-rich mmrs dataset, and try using more metadata as features
+- Add Dropout/Regularizer
+```
+
 ## Overview
 
 ### Tokenization
@@ -29,6 +35,7 @@ The high-level overview of the model's input-output is as follows:
 
 The model uses Mel spectrogram frames as encoder input, with one frame per input position. The model decoder output at each step is a softmax distribution over a discrete, predefined, vocabulary of events. Outputs are sparse, events are only needed when a hit-object occurs, instead of annotating every single audio frame.
 
+Note that in Rankinator, output tokens are **NOT** autoregressively sampled
 
 ## Credits
 
