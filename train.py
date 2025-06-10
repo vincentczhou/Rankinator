@@ -3,7 +3,7 @@ from pathlib import Path
 import hydra
 import lightning
 import torch
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
+from lightning.pytorch.callbacks import ModelCheckpoint, OnExceptionCheckpoint, LearningRateMonitor
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
 
@@ -18,7 +18,8 @@ torch.set_float32_matmul_precision('high')
 
 def load_old_model(path: str, model: OsuClassifier):
     ckpt_path = Path(path)
-    model_state = torch.load(ckpt_path / "pytorch_model.bin", weights_only=True)
+    model_state = torch.load(
+        ckpt_path / "pytorch_model.bin", weights_only=True)
 
     ignore_list = [
         "transformer.model.decoder.embed_tokens.weight",
@@ -43,6 +44,7 @@ def load_old_model(path: str, model: OsuClassifier):
 @hydra.main(config_path="configs", config_name="train_v1", version_base="1.1")
 def main(args: DictConfig):
     wandb_logger = WandbLogger(
+        name="No Mapper; Song Position",
         project="osu-classifier",
         entity="vincentczhou-university-of-washington",
         job_type="training",
@@ -53,6 +55,9 @@ def main(args: DictConfig):
     tokenizer = get_tokenizer(args)
     train_dataloader, val_dataloader = get_dataloaders(tokenizer, args)
 
+    # import pdb
+    # pdb.set_trace()
+
     model = LitOsuClassifier(args, tokenizer)
 
     if args.pretrained_path:
@@ -61,18 +66,20 @@ def main(args: DictConfig):
     if args.compile:
         model.model = torch.compile(model.model)
 
-    checkpoint_callback = ModelCheckpoint(every_n_train_steps=args.checkpoint.every_steps, save_top_k=2, monitor="val_loss")
+    checkpoint_callback = ModelCheckpoint(
+        every_n_train_steps=args.checkpoint.every_steps, save_top_k=2, monitor="val_loss")
     lr_monitor = LearningRateMonitor(logging_interval="step")
     trainer = lightning.Trainer(
         accelerator=args.device,
         precision=args.precision,
         logger=wandb_logger,
         max_steps=args.optim.total_steps,
+        min_epochs=0,
         accumulate_grad_batches=args.optim.grad_acc,
         gradient_clip_val=args.optim.grad_clip,
         val_check_interval=args.eval.every_steps,
         log_every_n_steps=args.logging.every_steps,
-        callbacks=[checkpoint_callback, lr_monitor],
+        callbacks=[OnExceptionCheckpoint(".", "exception"), checkpoint_callback, lr_monitor],
     )
     trainer.fit(model, train_dataloader, val_dataloader)
     trainer.save_checkpoint("final.ckpt")

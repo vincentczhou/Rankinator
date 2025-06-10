@@ -8,7 +8,7 @@ project_encoder_input: false
 
 do_style_embed: false
 do_difficulty_embed: true
-do_mapper_embed: true
+do_mapper_embed: false
 do_song_position_embed: true
 cond_dim: 128
 cond_size: 384

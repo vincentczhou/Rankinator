@@ -36,7 +36,8 @@ def get_backbone_model(args, tokenizer: Tokenizer):
     else:
         raise NotImplementedError
 
-    config.vocab_size = tokenizer.vocab_size
+    config.vocab_size = tokenizer.vocab_size_in
+    # config.vocab_size = tokenizer.vocab_size
 
     if hasattr(args.model, "overwrite"):
         for k, v in args.model.overwrite.items():
@@ -95,7 +96,8 @@ class OsuClassifier(nn.Module):
         self.num_classes = tokenizer.num_classes
         self.input_features = args.model.input_features
 
-        self.decoder_embedder = nn.Embedding(tokenizer.vocab_size, d_model)
+        # self.decoder_embedder = nn.Embedding(tokenizer.vocab_size, d_model)
+        self.decoder_embedder = nn.Embedding(tokenizer.vocab_size_in, d_model)
         self.decoder_embedder.weight.data.normal_(mean=0.0, std=1.0)
 
         self.spectrogram = MelSpectrogram(
@@ -108,7 +110,8 @@ class OsuClassifier(nn.Module):
         self.projector = nn.Linear(d_model, args.model.classifier_proj_size)
         self.classifier = nn.Linear(args.model.classifier_proj_size, tokenizer.num_classes)
 
-        self.vocab_size = tokenizer.vocab_size
+        self.vocab_size = tokenizer.vocab_size_in
+        # self.vocab_size = tokenizer.vocab_size
         self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(

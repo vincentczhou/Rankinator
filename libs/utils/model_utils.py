@@ -19,6 +19,7 @@ from transformers.utils import cached_file
 
 from .routed_pickle import Unpickler as routed_pickle
 from ..dataset import OrsDataset, OsuParser
+from ..dataset.mmrs_dataset import MmrsDataset
 from ..model import OsuClassifier
 from ..model.model import OsuClassifierOutput
 from ..tokenizer import Tokenizer
@@ -132,7 +133,8 @@ def get_scheduler(optimizer: Optimizer, args: DictConfig, num_processes=1) -> LR
 
     scheduler_p2 = CosineAnnealingLR(
         optimizer,
-        T_max=args.optim.total_steps * num_processes - args.optim.warmup_steps * num_processes,
+        T_max=args.optim.total_steps * num_processes -
+        args.optim.warmup_steps * num_processes,
         eta_min=args.optim.final_cosine,
     )
 
@@ -147,16 +149,30 @@ def get_scheduler(optimizer: Optimizer, args: DictConfig, num_processes=1) -> LR
 
 def get_dataloaders(tokenizer: Tokenizer, args: DictConfig) -> tuple[DataLoader, DataLoader]:
     parser = OsuParser(args, tokenizer)
+    # dataset = {
+    #     "train": OrsDataset(
+    #         args.data,
+    #         parser,
+    #         tokenizer,
+    #     ),
+    #     "test": OrsDataset(
+    #         args.data,
+    #         parser,
+    #         tokenizer,
+    #         test=True,
+    #     ),
+    # }
     dataset = {
-        "train": OrsDataset(
-            args.data,
-            parser,
-            tokenizer,
+        "train": MmrsDataset(
+            args=args.data,
+            parser=parser,
+            tokenizer=tokenizer,
+            test=False
         ),
-        "test": OrsDataset(
-            args.data,
-            parser,
-            tokenizer,
+        "test": MmrsDataset(
+            args=args.data,
+            parser=parser,
+            tokenizer=tokenizer,
             test=True,
         ),
     }
@@ -188,7 +204,8 @@ def worker_init_fn(worker_id: int) -> None:
     overall_end = dataset.end
     # configure the dataset to only process the split workload
     per_worker = int(
-        np.ceil((overall_end - overall_start) / float(worker_info.num_workers)),
+        np.ceil((overall_end - overall_start) /
+                float(worker_info.num_workers)),
     )
     dataset.start = overall_start + worker_id * per_worker
     dataset.end = min(dataset.start + per_worker, overall_end)
